@@ -25,13 +25,15 @@ func main() {
 		MaxIdleTime:  "15m",
 	}
 
-	_, err := database.InitDB(dbConfig)
+	db, err := database.InitDB(dbConfig)
 	if err != nil {
 		log.Fatalf("cant connect to database: %v", err)
 	}
-	log.Println("database connected...")
+	defer db.Close()
 
 	r := gin.Default()
+
+	apiRoutes(db, r, "v1")
 
 	port := os.Getenv("APP_PORT")
 	log.Println("server is running at port", port)

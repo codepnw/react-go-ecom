@@ -38,5 +38,7 @@ func InitDB(cfg DBConfig) (*sql.DB, error) {
 		return nil, err
 	}
 
+	log.Println("database connected...")
+
 	return db, nil
 }
