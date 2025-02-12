@@ -8,19 +8,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func apiRoutes(db *sql.DB, r *gin.Engine, version string) {
+func apiRoutes(db *sql.DB, version string) *gin.Engine {
+	r := gin.Default()
+
 	store := storage.NewStorage(db)
 
 	router := r.Group("/api/" + version)
-
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "API running !"})
 	})
 
+	// Categories Routes
 	catRouter := router.Group("/categories")
-
 	catRouter.POST("/", store.Category.Create)
 	catRouter.GET("/", store.Category.List)
 	catRouter.DELETE("/:id", store.Category.Delete)
 
+	return r
 }

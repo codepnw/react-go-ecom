@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/codepnw/react_go_ecom/config"
 	_ "github.com/lib/pq"
 )
 
@@ -16,7 +17,7 @@ type DBConfig struct {
 	MaxIdleTime  string
 }
 
-func InitDB(cfg DBConfig) (*sql.DB, error) {
+func InitDB(cfg *config.DBConfig) (*sql.DB, error) {
 	db, err := sql.Open("postgres", cfg.DBAddr)
 	if err != nil {
 		log.Fatal(err)
