@@ -24,5 +24,13 @@ func apiRoutes(db *sql.DB, version string) *gin.Engine {
 	catRouter.GET("/", store.Category.List)
 	catRouter.DELETE("/:id", store.Category.Delete)
 
+	// Products Routes
+	proRouter := router.Group("/products")
+	proRouter.POST("/", store.Product.Create)
+	proRouter.GET("/", store.Product.List)
+	proRouter.GET("/:id", store.Product.GetByID)
+	proRouter.PATCH("/:id", store.Product.Update)
+	proRouter.DELETE("/:id", store.Product.Delete)
+
 	return r
 }

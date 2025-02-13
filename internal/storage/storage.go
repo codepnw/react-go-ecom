@@ -10,6 +10,7 @@ import (
 
 type Storage struct {
 	Category handlers.CategoryHandler
+	Product  handlers.ProductHandler
 }
 
 func NewStorage(db *sql.DB) Storage {
@@ -17,7 +18,12 @@ func NewStorage(db *sql.DB) Storage {
 	catUc := usecases.NewCategoryUsecase(catRepo)
 	catHandler := handlers.NewCategoryHandler(catUc)
 
+	proRepo := repositories.NewProductRepository(db)
+	proUsecase := usecases.NewProductUsecase(proRepo)
+	proHandler := handlers.NewProductHandler(proUsecase)
+
 	return Storage{
 		Category: catHandler,
+		Product:  proHandler,
 	}
 }
