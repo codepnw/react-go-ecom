@@ -18,30 +18,28 @@ type ProductRepository interface {
 	List(ctx context.Context) ([]*entities.Product, error)
 	Update(ctx context.Context, id int, req entities.Product) error
 	Delete(ctx context.Context, id int) error
+	Search(ctx context.Context, text string) ([]*entities.Product, error)
 }
 
 type productRepository struct {
-	db             *sql.DB
-	queryFields    []string
-	values         []any
-	lastStackIndex int
+	db *sql.DB
 }
 
 func NewProductRepository(db *sql.DB) ProductRepository {
-	return &productRepository{
-		db:          db,
-		queryFields: make([]string, 0),
-		values:      make([]any, 0),
-	}
+	return &productRepository{db: db}
 }
 
 func (r *productRepository) Create(ctx context.Context, req *entities.ProductPayloadReq) error {
 	query := `
-		INSERT INTO products (title, description, price, sold, quantity)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO products (title, description, price, sold, quantity, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 	var id int
+
+	var created = map[string]any{
+		"created_at": utils.ThaiTime,
+	}
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -51,6 +49,7 @@ func (r *productRepository) Create(ctx context.Context, req *entities.ProductPay
 		&req.Price,
 		&req.Sold,
 		&req.Quantity,
+		created["created_at"],
 	).Scan(&id)
 	if err != nil {
 		return err
@@ -210,4 +209,36 @@ func (r *productRepository) Delete(ctx context.Context, id int) error {
 	}
 
 	return nil
+}
+
+func (r *productRepository) Search(ctx context.Context, text string) ([]*entities.Product, error) {
+	query := `
+		SELECT id, title, description, price, sold, quantity, created_at
+		FROM products WHERE title ILIKE $1 OR description ILIKE $2
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, "%"+text+"%", "%"+text+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var products []*entities.Product
+	for rows.Next() {
+		var p entities.Product
+		if err := rows.Scan(
+			&p.ID, 
+			&p.Title, 
+			&p.Description, 
+			&p.Price, 
+			&p.Sold, 
+			&p.Quantity, 
+			&p.CreatedAt, 
+		); err != nil {
+			return nil, err
+		}
+		products = append(products, &p)
+	}
+
+	return products, nil
 }

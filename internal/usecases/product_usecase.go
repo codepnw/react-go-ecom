@@ -13,6 +13,7 @@ type ProductUsecase interface {
 	List(ctx context.Context) ([]*entities.Product, error)
 	Update(ctx context.Context, id int, req entities.Product) error
 	Delete(ctx context.Context, id int) error
+	Search(ctx context.Context, text string) ([]*entities.Product, error)
 }
 
 type productUsecase struct {
@@ -70,4 +71,8 @@ func (uc *productUsecase) Delete(ctx context.Context, id int) error {
 	defer cancel()
 
 	return uc.repo.Delete(ctx, id)
+}
+
+func (uc *productUsecase) Search(ctx context.Context, text string) ([]*entities.Product, error) {
+	return uc.repo.Search(ctx, text)
 }

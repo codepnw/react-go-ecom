@@ -54,6 +54,19 @@ func (h *productHandler) GetByID(c *gin.Context) {
 }
 
 func (h *productHandler) List(c *gin.Context) {
+	search := c.Query("search")
+
+	if search != "" {
+		products, err := h.uc.Search(c.Request.Context(), search)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, products)
+		return
+	}
+
 	products, err := h.uc.List(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -90,5 +103,4 @@ func (h *productHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNoContent, gin.H{"message": "product deleted"})
-
 }
