@@ -6,6 +6,7 @@ import (
 
 	"github.com/codepnw/react_go_ecom/internal/entities"
 	"github.com/codepnw/react_go_ecom/internal/usecases"
+	"github.com/codepnw/react_go_ecom/internal/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,16 +30,16 @@ func (h *productHandler) Create(c *gin.Context) {
 	var req entities.ProductPayloadReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
 		return
 	}
 
 	if err := h.uc.Create(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "product created"})
+	utils.NewResponse(c).Success(http.StatusCreated, "product created")
 }
 
 func (h *productHandler) GetByID(c *gin.Context) {
@@ -46,11 +47,11 @@ func (h *productHandler) GetByID(c *gin.Context) {
 
 	product, err := h.uc.GetByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, product)
+	utils.NewResponse(c).Success(http.StatusOK, product)
 }
 
 func (h *productHandler) List(c *gin.Context) {
@@ -59,21 +60,21 @@ func (h *productHandler) List(c *gin.Context) {
 	if search != "" {
 		products, err := h.uc.Search(c.Request.Context(), search)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, products)
+		utils.NewResponse(c).Success(http.StatusOK, products)
 		return
 	}
 
 	products, err := h.uc.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, products)
+	utils.NewResponse(c).Success(http.StatusOK, products)
 }
 
 func (h *productHandler) Update(c *gin.Context) {
@@ -82,25 +83,25 @@ func (h *productHandler) Update(c *gin.Context) {
 	req := entities.Product{}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
 		return
 	}
 
 	if err := h.uc.Update(c.Request.Context(), id, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "product updated"})
+	utils.NewResponse(c).Success(http.StatusOK, "product updated")
 }
 
 func (h *productHandler) Delete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 
 	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, gin.H{"message": "product deleted"})
+	utils.NewResponse(c).Success(http.StatusNoContent, "product deleted")
 }
