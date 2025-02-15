@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/codepnw/react_go_ecom/internal/entities"
@@ -172,7 +171,7 @@ func (r *productRepository) Update(ctx context.Context, id int, req entities.Pro
 	lastIndex = len(values)
 	query := fmt.Sprintf("UPDATE products SET %s WHERE id = $%d", strings.Join(fields, ", "), lastIndex)
 
-	log.Println(query)
+	// log.Println(query)
 
 	result, err := r.db.ExecContext(ctx, query, values...)
 	if err != nil {
@@ -227,13 +226,13 @@ func (r *productRepository) Search(ctx context.Context, text string) ([]*entitie
 	for rows.Next() {
 		var p entities.Product
 		if err := rows.Scan(
-			&p.ID, 
-			&p.Title, 
-			&p.Description, 
-			&p.Price, 
-			&p.Sold, 
-			&p.Quantity, 
-			&p.CreatedAt, 
+			&p.ID,
+			&p.Title,
+			&p.Description,
+			&p.Price,
+			&p.Sold,
+			&p.Quantity,
+			&p.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

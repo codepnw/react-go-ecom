@@ -19,7 +19,7 @@ func main() {
 	defer db.Close()
 
 	// API Routes
-	r := apiRoutes(db, cfg.AppConfig.AppVersion)
+	r := apiRoutes(db, *cfg)
 
 	port := cfg.AppConfig.AppPort
 	log.Println("server is running at port", port)

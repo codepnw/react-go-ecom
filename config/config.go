@@ -11,6 +11,7 @@ import (
 type Config struct {
 	*AppConfig
 	*DBConfig
+	*JWTConfig
 }
 
 type AppConfig struct {
@@ -23,6 +24,12 @@ type DBConfig struct {
 	MaxOpenConns int
 	MaxIdleConns int
 	MaxIdleTime  string
+}
+
+type JWTConfig struct {
+	Secret             string
+	AccessTokenExpire  int
+	RefreshTokenExpire int
 }
 
 func LoadConfig(envPath string) *Config {
@@ -40,6 +47,11 @@ func LoadConfig(envPath string) *Config {
 			MaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 10),
 			MaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 10),
 			MaxIdleTime:  getEnv("DB_MAX_IDLE_TIME", "15m"),
+		},
+		&JWTConfig{
+			Secret:             getEnv("JWT_SECRET", "secret"),
+			AccessTokenExpire:  getEnvInt("JWT_ACCESS_EXPIRE", 15),
+			RefreshTokenExpire: getEnvInt("JWT_REFRESH_EXPIRE", 1440),
 		},
 	}
 }
