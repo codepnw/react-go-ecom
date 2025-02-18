@@ -17,6 +17,8 @@ type UserHandler interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
 	Profile(c *gin.Context)
+	RefreshToken(c *gin.Context)
+	Logout(c *gin.Context)
 }
 
 type userHandler struct {
@@ -84,4 +86,42 @@ func (h *userHandler) Profile(c *gin.Context) {
 	log.Println("Profile:", user)
 
 	utils.NewResponse(c).Success(http.StatusOK, user)
+}
+
+func (h *userHandler) RefreshToken(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
+		return
+	}
+
+	newAccessToken, err := h.uc.RefreshToken(req.RefreshToken)
+	if err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusOK, newAccessToken)
+}
+
+
+func (h *userHandler) Logout(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.uc.Logout(req.RefreshToken); err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusNoContent, "user logout!")
 }

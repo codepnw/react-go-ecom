@@ -23,6 +23,8 @@ func apiRoutes(db *sql.DB, cfg config.Config) *gin.Engine {
 	// Auth Routes
 	router.POST("/auth/register", store.User.Register)
 	router.POST("/auth/login", store.User.Login)
+	router.POST("/auth/refresh", store.User.RefreshToken)
+	router.POST("/auth/logout", store.User.Logout)
 
 	// Middleware Routes
 	m := middleware.InitMiddleware(*cfg.JWTConfig)
