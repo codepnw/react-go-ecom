@@ -5,14 +5,15 @@ import (
 
 	"github.com/codepnw/react_go_ecom/internal/entities"
 	"github.com/codepnw/react_go_ecom/internal/repositories"
+	"github.com/codepnw/react_go_ecom/internal/utils"
 )
 
 type ProductUsecase interface {
-	Create(ctx context.Context, req *entities.ProductPayloadReq) error
-	GetByID(ctx context.Context, id int) (*entities.Product, error)
-	List(ctx context.Context) ([]*entities.Product, error)
-	Update(ctx context.Context, id int, req entities.Product) error
-	Delete(ctx context.Context, id int) error
+	Create(ctx context.Context, req *entities.ProductPayloadReq) (string, error)
+	GetByID(ctx context.Context, id string) (*entities.Product, error)
+	List(ctx context.Context, limit, offset string) ([]*entities.Product, error)
+	Update(ctx context.Context, id string, req entities.Product) error
+	Delete(ctx context.Context, id string) error
 	Search(ctx context.Context, text string) ([]*entities.Product, error)
 }
 
@@ -24,30 +25,41 @@ func NewProductUsecase(repo repositories.ProductRepository) ProductUsecase {
 	return &productUsecase{repo: repo}
 }
 
-func (uc *productUsecase) Create(ctx context.Context, req *entities.ProductPayloadReq) error {
+func (uc *productUsecase) Create(ctx context.Context, req *entities.ProductPayloadReq) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
-	return uc.repo.Create(ctx, req)
-}
-
-func (uc *productUsecase) GetByID(ctx context.Context, id int) (*entities.Product, error) {
-	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
-	defer cancel()
-
-	product, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
+	var product = &entities.Product{
+		Title:       req.Title,
+		Description: req.Description,
+		Price:       req.Price,
+		Stock:       req.Stock,
+		CreatedAt:   utils.ThaiTime,
 	}
 
-	return product, nil
+	return uc.repo.Create(ctx, product)
 }
 
-func (uc *productUsecase) List(ctx context.Context) ([]*entities.Product, error) {
+func (uc *productUsecase) GetByID(ctx context.Context, id string) (*entities.Product, error) {
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
-	products, err := uc.repo.List(ctx)
+	return uc.repo.GetByID(ctx, id)
+}
+
+func (uc *productUsecase) List(ctx context.Context, limit, offset string) ([]*entities.Product, error) {
+	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
+	defer cancel()
+
+	if limit == "" {
+		limit = "10"
+	}
+
+	if offset == "" {
+		offset = "0"
+	}
+
+	products, err := uc.repo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +67,7 @@ func (uc *productUsecase) List(ctx context.Context) ([]*entities.Product, error)
 	return products, nil
 }
 
-func (uc *productUsecase) Update(ctx context.Context, id int, req entities.Product) error {
+func (uc *productUsecase) Update(ctx context.Context, id string, req entities.Product) error {
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
@@ -66,7 +78,7 @@ func (uc *productUsecase) Update(ctx context.Context, id int, req entities.Produ
 	return nil
 }
 
-func (uc *productUsecase) Delete(ctx context.Context, id int) error {
+func (uc *productUsecase) Delete(ctx context.Context, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 

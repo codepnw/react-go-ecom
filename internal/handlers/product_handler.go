@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/codepnw/react_go_ecom/internal/entities"
 	"github.com/codepnw/react_go_ecom/internal/usecases"
@@ -34,16 +34,23 @@ func (h *productHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.Create(c.Request.Context(), &req); err != nil {
+	id, err := h.uc.Create(c.Request.Context(), &req)
+	if err != nil {
 		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.NewResponse(c).Success(http.StatusCreated, "product created")
+	product, err := h.uc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusCreated, product)
 }
 
 func (h *productHandler) GetByID(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id := c.Param("id")
 
 	product, err := h.uc.GetByID(c.Request.Context(), id)
 	if err != nil {
@@ -56,6 +63,8 @@ func (h *productHandler) GetByID(c *gin.Context) {
 
 func (h *productHandler) List(c *gin.Context) {
 	search := c.Query("search")
+	limit := c.Query("limit")
+	offset := c.Query("offset")
 
 	if search != "" {
 		products, err := h.uc.Search(c.Request.Context(), search)
@@ -68,7 +77,7 @@ func (h *productHandler) List(c *gin.Context) {
 		return
 	}
 
-	products, err := h.uc.List(c.Request.Context())
+	products, err := h.uc.List(c.Request.Context(), limit, offset)
 	if err != nil {
 		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
@@ -78,7 +87,7 @@ func (h *productHandler) List(c *gin.Context) {
 }
 
 func (h *productHandler) Update(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id := c.Param("id")
 
 	req := entities.Product{}
 
@@ -92,16 +101,22 @@ func (h *productHandler) Update(c *gin.Context) {
 		return
 	}
 
-	utils.NewResponse(c).Success(http.StatusOK, "product updated")
+	product, err := h.uc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusOK, product)
 }
 
 func (h *productHandler) Delete(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
+	id := c.Param("id")
 
 	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
 		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.NewResponse(c).Success(http.StatusNoContent, "product deleted")
+	utils.NewResponse(c).Success(http.StatusOK, fmt.Sprintf("product_id %s deleted", id))
 }

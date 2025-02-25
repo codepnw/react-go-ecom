@@ -12,11 +12,11 @@ import (
 )
 
 type ProductRepository interface {
-	Create(ctx context.Context, req *entities.ProductPayloadReq) error
-	GetByID(ctx context.Context, id int) (*entities.Product, error)
-	List(ctx context.Context) ([]*entities.Product, error)
-	Update(ctx context.Context, id int, req entities.Product) error
-	Delete(ctx context.Context, id int) error
+	Create(ctx context.Context, req *entities.Product) (string, error)
+	GetByID(ctx context.Context, id string) (*entities.Product, error)
+	List(ctx context.Context, limit, offset string) ([]*entities.Product, error)
+	Update(ctx context.Context, id string, req entities.Product) error
+	Delete(ctx context.Context, id string) error
 	Search(ctx context.Context, text string) ([]*entities.Product, error)
 }
 
@@ -28,17 +28,13 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) Create(ctx context.Context, req *entities.ProductPayloadReq) error {
+func (r *productRepository) Create(ctx context.Context, req *entities.Product) (string, error) {
 	query := `
-		INSERT INTO products (title, description, price, sold, quantity, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id
+		INSERT INTO products (title, description, price, stock, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING product_id
 	`
-	var id int
-
-	var created = map[string]any{
-		"created_at": utils.ThaiTime,
-	}
+	var id string
 
 	err := r.db.QueryRowContext(
 		ctx,
@@ -46,21 +42,20 @@ func (r *productRepository) Create(ctx context.Context, req *entities.ProductPay
 		&req.Title,
 		&req.Description,
 		&req.Price,
-		&req.Sold,
-		&req.Quantity,
-		created["created_at"],
+		&req.Stock,
+		&req.CreatedAt,
 	).Scan(&id)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return id, nil
 }
 
-func (r *productRepository) GetByID(ctx context.Context, id int) (*entities.Product, error) {
+func (r *productRepository) GetByID(ctx context.Context, id string) (*entities.Product, error) {
 	query := `
-		SELECT id, title, description, price, sold, quantity, created_at, updated_at
-		FROM products WHERE id = $1
+		SELECT product_id, title, description, price, stock, created_at, updated_at
+		FROM products WHERE product_id = $1
 	`
 	var p entities.Product
 
@@ -69,8 +64,7 @@ func (r *productRepository) GetByID(ctx context.Context, id int) (*entities.Prod
 		&p.Title,
 		&p.Description,
 		&p.Price,
-		&p.Sold,
-		&p.Quantity,
+		&p.Stock,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -84,11 +78,13 @@ func (r *productRepository) GetByID(ctx context.Context, id int) (*entities.Prod
 	return &p, nil
 }
 
-func (r *productRepository) List(ctx context.Context) ([]*entities.Product, error) {
+func (r *productRepository) List(ctx context.Context, limit, offset string) ([]*entities.Product, error) {
 	query := `
-		SELECT id, title, description, price, sold, quantity, created_at, updated_at
+		SELECT product_id, title, description, price, stock, created_at, updated_at
 		FROM products
 	`
+	query += fmt.Sprintf("LIMIT %s OFFSET %s", limit, offset)
+
 	var products []*entities.Product
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -104,8 +100,7 @@ func (r *productRepository) List(ctx context.Context) ([]*entities.Product, erro
 			&p.Title,
 			&p.Description,
 			&p.Price,
-			&p.Sold,
-			&p.Quantity,
+			&p.Stock,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
@@ -121,7 +116,7 @@ func (r *productRepository) List(ctx context.Context) ([]*entities.Product, erro
 	return products, nil
 }
 
-func (r *productRepository) Update(ctx context.Context, id int, req entities.Product) error {
+func (r *productRepository) Update(ctx context.Context, id string, req entities.Product) error {
 	var fields []string
 	var values []any
 	var lastIndex int
@@ -147,18 +142,11 @@ func (r *productRepository) Update(ctx context.Context, id int, req entities.Pro
 		fields = append(fields, fmt.Sprintf("price = $%d", lastIndex))
 	}
 
-	if req.Sold != 0 {
-		values = append(values, req.Sold)
+	if req.Stock != 0 {
+		values = append(values, req.Stock)
 		lastIndex = len(values)
 
-		fields = append(fields, fmt.Sprintf("sold = $%d", lastIndex))
-	}
-
-	if req.Quantity != 0 {
-		values = append(values, req.Quantity)
-		lastIndex = len(values)
-
-		fields = append(fields, fmt.Sprintf("quantity = $%d", lastIndex))
+		fields = append(fields, fmt.Sprintf("stock = $%d", lastIndex))
 	}
 
 	// Add Field updated_at
@@ -169,7 +157,7 @@ func (r *productRepository) Update(ctx context.Context, id int, req entities.Pro
 	// Add Product ID
 	values = append(values, id)
 	lastIndex = len(values)
-	query := fmt.Sprintf("UPDATE products SET %s WHERE id = $%d", strings.Join(fields, ", "), lastIndex)
+	query := fmt.Sprintf("UPDATE products SET %s WHERE product_id = $%d", strings.Join(fields, ", "), lastIndex)
 
 	// log.Println(query)
 
@@ -190,8 +178,8 @@ func (r *productRepository) Update(ctx context.Context, id int, req entities.Pro
 	return nil
 }
 
-func (r *productRepository) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM products WHERE id = $1`
+func (r *productRepository) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM products WHERE product_id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
@@ -212,7 +200,7 @@ func (r *productRepository) Delete(ctx context.Context, id int) error {
 
 func (r *productRepository) Search(ctx context.Context, text string) ([]*entities.Product, error) {
 	query := `
-		SELECT id, title, description, price, sold, quantity, created_at
+		SELECT product_id, title, description, price, stock, created_at, updated_at
 		FROM products WHERE title ILIKE $1 OR description ILIKE $2
 		ORDER BY created_at DESC
 	`
@@ -230,9 +218,9 @@ func (r *productRepository) Search(ctx context.Context, text string) ([]*entitie
 			&p.Title,
 			&p.Description,
 			&p.Price,
-			&p.Sold,
-			&p.Quantity,
+			&p.Stock,
 			&p.CreatedAt,
+			&p.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

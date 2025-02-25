@@ -18,3 +18,6 @@ migrate-up:
 
 migrate-down:
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(DB_URL) down $(filter-out $@,$(MAKECMDGOALS))
+	
+migrate-force:
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(DB_URL) force 1

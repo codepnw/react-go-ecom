@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/codepnw/react_go_ecom/config"
-	"github.com/codepnw/react_go_ecom/internal/middleware"
 	"github.com/codepnw/react_go_ecom/internal/storage"
 	"github.com/gin-gonic/gin"
 )
@@ -27,9 +26,9 @@ func apiRoutes(db *sql.DB, cfg config.Config) *gin.Engine {
 	router.POST("/auth/logout", store.User.Logout)
 
 	// Middleware Routes
-	m := middleware.InitMiddleware(*cfg.JWTConfig)
-	midRouter := router.Use(m.AuthMiddleware())
-	midRouter.GET("/users/profile", store.User.Profile)
+	// m := middleware.InitMiddleware(*cfg.JWTConfig)
+	// midRouter := router.Use(m.AuthMiddleware())
+	// midRouter.GET("/users/profile", store.User.Profile)
 
 	// Categories Routes
 	catRouter := router.Group("/categories")
