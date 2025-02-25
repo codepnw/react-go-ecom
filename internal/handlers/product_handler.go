@@ -16,6 +16,9 @@ type ProductHandler interface {
 	List(c *gin.Context)
 	Update(c *gin.Context)
 	Delete(c *gin.Context)
+	ProductPurchase(c *gin.Context)
+	CheckOutOfStock(c *gin.Context)
+	RestockProduct(c *gin.Context)
 }
 
 type productHandler struct {
@@ -119,4 +122,46 @@ func (h *productHandler) Delete(c *gin.Context) {
 	}
 
 	utils.NewResponse(c).Success(http.StatusOK, fmt.Sprintf("product_id %s deleted", id))
+}
+
+func (h *productHandler) ProductPurchase(c *gin.Context) {
+	req := entities.ProductStock{}
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.uc.PurchaseProduct(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusOK, "purchase successful")
+}
+
+func (h *productHandler) CheckOutOfStock(c *gin.Context) {
+	products, err := h.uc.CheckOutOfStock()
+	if err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusOK, products)
+}
+
+func (h *productHandler) RestockProduct(c *gin.Context) {
+	req := entities.ProductStock{}
+
+	if err := c.ShouldBind(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.uc.RestockProduct(&req); err != nil {
+		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.NewResponse(c).Success(http.StatusOK, fmt.Sprintf("product_id %s added %d stock", req.ProductID, req.Quantity))
 }

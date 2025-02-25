@@ -43,6 +43,9 @@ func apiRoutes(db *sql.DB, cfg config.Config) *gin.Engine {
 	proRouter.GET("/:id", store.Product.GetByID)
 	proRouter.PATCH("/:id", store.Product.Update)
 	proRouter.DELETE("/:id", store.Product.Delete)
+	proRouter.POST("/purchase", store.Product.ProductPurchase)
+	proRouter.GET("/out-of-stock", store.Product.CheckOutOfStock)
+	proRouter.PUT("/restock", store.Product.RestockProduct)
 
 	return r
 }

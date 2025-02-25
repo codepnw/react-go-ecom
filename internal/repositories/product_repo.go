@@ -18,6 +18,11 @@ type ProductRepository interface {
 	Update(ctx context.Context, id string, req entities.Product) error
 	Delete(ctx context.Context, id string) error
 	Search(ctx context.Context, text string) ([]*entities.Product, error)
+	ReduceStock(productID string, stock int) error
+	CheckStock(productID string) (int, error)
+	AddSoldQuantity(productID string, quantity int) error
+	CheckOutOfStock() ([]*entities.Product, error)
+	RestockProduct(req *entities.ProductStock) error
 }
 
 type productRepository struct {
@@ -80,7 +85,7 @@ func (r *productRepository) GetByID(ctx context.Context, id string) (*entities.P
 
 func (r *productRepository) List(ctx context.Context, limit, offset string) ([]*entities.Product, error) {
 	query := `
-		SELECT product_id, title, description, price, stock, created_at, updated_at
+		SELECT product_id, title, description, price, stock, quantity, created_at, updated_at
 		FROM products
 	`
 	query += fmt.Sprintf("LIMIT %s OFFSET %s", limit, offset)
@@ -101,6 +106,7 @@ func (r *productRepository) List(ctx context.Context, limit, offset string) ([]*
 			&p.Description,
 			&p.Price,
 			&p.Stock,
+			&p.Quantity,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
@@ -200,7 +206,7 @@ func (r *productRepository) Delete(ctx context.Context, id string) error {
 
 func (r *productRepository) Search(ctx context.Context, text string) ([]*entities.Product, error) {
 	query := `
-		SELECT product_id, title, description, price, stock, created_at, updated_at
+		SELECT product_id, title, description, price, stock, quantity, created_at, updated_at
 		FROM products WHERE title ILIKE $1 OR description ILIKE $2
 		ORDER BY created_at DESC
 	`
@@ -219,6 +225,7 @@ func (r *productRepository) Search(ctx context.Context, text string) ([]*entitie
 			&p.Description,
 			&p.Price,
 			&p.Stock,
+			&p.Quantity,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
@@ -228,4 +235,88 @@ func (r *productRepository) Search(ctx context.Context, text string) ([]*entitie
 	}
 
 	return products, nil
+}
+
+func (r *productRepository) ReduceStock(productID string, stock int) error {
+	query := `
+		UPDATE products SET stock = stock - $1
+		WHERE product_id = $2 AND stock >= $1
+	`
+	result, err := r.db.Exec(query, stock, productID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return errors.New("not enough stock")
+	}
+
+	return nil
+}
+
+func (r *productRepository) CheckStock(productID string) (int, error) {
+	var stock int
+
+	err := r.db.QueryRow("SELECT stock FROM products WHERE product_id = $1", productID).Scan(&stock)
+	if err != nil {
+		return 0, err
+	}
+
+	return stock, nil
+}
+
+func (r *productRepository) AddSoldQuantity(productID string, quantity int) error {
+	result, err := r.db.Exec("UPDATE products SET quantity = $1 WHERE product_id = $2", quantity, productID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return errors.New("update sold quantity fail")
+	}
+
+	return nil
+}
+
+func (r *productRepository) CheckOutOfStock() ([]*entities.Product, error) {
+	query := `
+		SELECT product_id, title, description, price, stock, quantity, created_at, updated_at
+		FROM products WHERE stock = 0	
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := []*entities.Product{}
+
+	for rows.Next() {
+		p := entities.Product{}
+
+		if err := rows.Scan(
+			&p.ID,
+			&p.Title,
+			&p.Description,
+			&p.Price,
+			&p.Stock,
+			&p.Quantity,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		products = append(products, &p)
+	}
+
+	return products, nil
+}
+
+func (r *productRepository) RestockProduct(req *entities.ProductStock) error {
+	query := `UPDATE products SET stock = stock + $1 WHERE product_id = $2`
+	_, err := r.db.Exec(query, req.Quantity, req.ProductID)
+
+	return err
 }
