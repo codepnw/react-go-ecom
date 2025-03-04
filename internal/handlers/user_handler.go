@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/codepnw/react_go_ecom/internal/entities"
 	"github.com/codepnw/react_go_ecom/internal/usecases"
@@ -43,7 +42,7 @@ func (h *userHandler) Register(c *gin.Context) {
 		return
 	}
 
-	utils.NewResponse(c).Success(http.StatusCreated, user.ID)
+	utils.NewResponse(c).Success(http.StatusCreated, user)
 }
 
 func (h *userHandler) Login(c *gin.Context) {
@@ -70,14 +69,13 @@ func (h *userHandler) Login(c *gin.Context) {
 }
 
 func (h *userHandler) Profile(c *gin.Context) {
-	id, ok := c.Get("user_id")
+	userID, ok := c.Get("user_id")
 	if !ok {
 		utils.NewResponse(c).Error(http.StatusBadRequest, errors.New("user_id not found"))
 		return
 	}
 
-	userID, _ := strconv.Atoi(id.(string))
-	user, err := h.uc.GetProfile(c.Request.Context(), userID)
+	user, err := h.uc.GetProfile(c.Request.Context(), userID.(string))
 	if err != nil {
 		utils.NewResponse(c).Error(http.StatusInternalServerError, err)
 		return
@@ -106,7 +104,6 @@ func (h *userHandler) RefreshToken(c *gin.Context) {
 
 	utils.NewResponse(c).Success(http.StatusOK, newAccessToken)
 }
-
 
 func (h *userHandler) Logout(c *gin.Context) {
 	var req struct {

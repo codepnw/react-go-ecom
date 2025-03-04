@@ -9,10 +9,10 @@ import (
 )
 
 type UserRepository interface {
-	Create(ctx context.Context, user *entities.User) error
-	GetByID(ctx context.Context, id int) (*entities.User, error)
+	Create(ctx context.Context, user *entities.User) (string, error)
+	GetByID(ctx context.Context, id string) (*entities.User, error)
 	GetByEmail(ctx context.Context, email string) (*entities.User, error)
-	SaveRefreshToken(userID int, token string, expires time.Time) error
+	SaveRefreshToken(userID string, token string, expires time.Time) error
 	ValidateRefreshToken(token string) (int, error)
 	DeleteRefreshToken(token string) error
 }
@@ -25,44 +25,51 @@ func NewUserRepository(db *sql.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
-func (r *userRepository) Create(ctx context.Context, user *entities.User) error {
+func (r *userRepository) Create(ctx context.Context, user *entities.User) (string, error) {
 	query := `
-		INSERT INTO users (email, password, role, enabled, created_at, updated_at, picture, address)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id
+		INSERT INTO users (email, password, first_name, last_name, role_id, enabled, images, address, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING user_id
 	`
-	var id int
+	var id string
 
 	err := r.db.QueryRowContext(
 		ctx,
 		query,
 		&user.Email,
 		&user.Password,
-		&user.Role,
+		&user.FirstName,
+		&user.LastName,
+		&user.RoleID,
 		&user.Enabled,
+		"later",
+		&user.Address,
 		&user.CreatedAt,
 		&user.UpdatedAt,
-		"later",
-		"later",
 	).Scan(&id)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return id, nil
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id int) (*entities.User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id string) (*entities.User, error) {
 	query := `
-		SELECT id, email, password, role
-		FROM users WHERE id = $1
+		SELECT user_id, email, first_name, last_name, role_id, address, enabled, created_at, updated_at
+		FROM users WHERE user_id = $1
 	`
 	var user entities.User
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
-		&user.Password,
-		&user.Role,
+		&user.FirstName,
+		&user.LastName,
+		&user.RoleID,
+		&user.Address,
+		&user.Enabled,
+		&user.CreatedAt,
+		&user.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -73,7 +80,7 @@ func (r *userRepository) GetByID(ctx context.Context, id int) (*entities.User, e
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entities.User, error) {
 	query := `
-		SELECT id, email, password, role
+		SELECT user_id, email, password, role_id
 		FROM users WHERE email = $1
 	`
 	var user entities.User
@@ -81,7 +88,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entitie
 		&user.ID,
 		&user.Email,
 		&user.Password,
-		&user.Role,
+		&user.RoleID,
 	)
 	if err != nil {
 		return nil, err
@@ -90,7 +97,7 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*entitie
 	return &user, nil
 }
 
-func (r *userRepository) SaveRefreshToken(userID int, token string, expires time.Time) error {
+func (r *userRepository) SaveRefreshToken(userID string, token string, expires time.Time) error {
 	query := `INSERT INTO refresh_token (user_id, token, expire_at) VALUES ($1, $2, $3)`
 	_, err := r.db.Exec(query, userID, token, expires)
 

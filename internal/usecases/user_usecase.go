@@ -18,7 +18,7 @@ import (
 type UserUsecase interface {
 	Register(ctx context.Context, req *entities.UserRegisterReq) (*entities.User, error)
 	Login(ctx context.Context, req *entities.UserLoginReq) (string, string, error)
-	GetProfile(ctx context.Context, id int) (*entities.User, error)
+	GetProfile(ctx context.Context, id string) (*entities.User, error)
 	RefreshToken(refreshToken string) (string, error)
 	Logout(token string) error
 }
@@ -38,6 +38,14 @@ func NewUserUsecase(repo repositories.UserRepository, cfg config.JWTConfig) User
 func (uc *userUsecase) Register(ctx context.Context, req *entities.UserRegisterReq) (*entities.User, error) {
 	var user entities.User
 
+	if !user.ValidateEmail(req.Email) {
+		return nil, errors.New("invalid email address")
+	}
+
+	if !user.ValidatePassword(req.Password) {
+		return nil, errors.New("password least 6 character")
+	}
+
 	hashedPassword, err := user.HashedPassword(req.Password)
 	if err != nil {
 		return nil, err
@@ -46,24 +54,46 @@ func (uc *userUsecase) Register(ctx context.Context, req *entities.UserRegisterR
 	user = entities.User{
 		Email:     req.Email,
 		Password:  hashedPassword,
-		Role:      "user",
+		FirstName: req.FirstName,
+		LastName:  req.LastName,
+		RoleID:    3,
 		Enabled:   true,
-		Address:   "-",
+		Address:   req.Address,
 		CreatedAt: utils.ThaiTime,
-		UpdatedAt: utils.ThaiTime,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
-	if err := uc.repo.Create(ctx, &user); err != nil {
+	userID, err := uc.repo.Create(ctx, &user)
+	if err != nil {
+		switch {
+		case err.Error() == "pq: duplicate key value violates unique constraint \"users_email_key\"":
+			return nil, errors.New("email is already exists")
+		default:
+			return nil, err
+		}
+	}
+
+	u, err := uc.repo.GetByID(ctx, userID)
+	if err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	return u, nil
 }
 
 func (uc *userUsecase) Login(ctx context.Context, req *entities.UserLoginReq) (string, string, error) {
+	var u entities.User
+
+	if !u.ValidateEmail(req.Email) {
+		return "", "", errors.New("invalid email address")
+	}
+
+	if !u.ValidatePassword(req.Password) {
+		return "", "", errors.New("password least 6 character")
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
@@ -79,8 +109,7 @@ func (uc *userUsecase) Login(ctx context.Context, req *entities.UserLoginReq) (s
 		return "", "", err
 	}
 
-	userID := strconv.Itoa(user.ID)
-	accessToken, refreshToken, err := auth.GenerateToken(userID, uc.cfg)
+	accessToken, refreshToken, err := auth.GenerateToken(user.ID, uc.cfg)
 	if err != nil {
 		return "", "", err
 	}
@@ -119,7 +148,7 @@ func (uc *userUsecase) RefreshToken(refreshToken string) (string, error) {
 	return newAccessToken, nil
 }
 
-func (uc *userUsecase) GetProfile(ctx context.Context, id int) (*entities.User, error) {
+func (uc *userUsecase) GetProfile(ctx context.Context, id string) (*entities.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, contextTimeoutQuery)
 	defer cancel()
 
